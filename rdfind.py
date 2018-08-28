@@ -76,15 +76,18 @@ def main():
     reducers = [size]
     comperator = bytecmp
     
-    all_files = []
+    # TODO: option to ignore links while searching
+    all_paths = set([])
     for p in args.paths:
         for path, subdirs, files in os.walk(p):
             for name in files:
-                all_files.append(os.path.join(path, name))
+                file_path = os.path.realpath(os.path.join(path, name))
+                all_paths.add(file_path)
+    all_paths = list(all_paths)
     
-    logging.info('non-unique count: %d' % len(all_files))
+    logging.info('non-unique count: %d' % len(all_paths))
     
-    non_uniques_list = [all_files]
+    non_uniques_list = [all_paths]
     for reducer in reducers:
         logging.info('used reducer: %s' % str(reducer))
         next_non_uniques_list = []
