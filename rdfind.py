@@ -97,7 +97,7 @@ def main():
                 all_paths.add(file_path)
     all_paths = list(all_paths)
     
-    logging.info('non-unique count %d' % len(all_paths))
+    logging.info('non-unique %d' % len(all_paths))
     
     non_uniques_list = [all_paths]
     for reducer in reducers:
@@ -109,7 +109,7 @@ def main():
             non_unique_count += s[1]
             next_non_uniques_list.extend(s[-1])
         non_uniques_list = next_non_uniques_list
-        logging.info('non-unique count %d group count %d' % (non_unique_count, len(non_uniques_list)))
+        logging.info('non-unique %d groups %d' % (non_unique_count, len(non_uniques_list)))
     
     logging.info('use comperator %s' % str(comperator))
     next_non_uniques_list = []
@@ -119,7 +119,7 @@ def main():
         non_unique_count += s[1]
         next_non_uniques_list.extend(s[-1])
     non_uniques_list = next_non_uniques_list
-    logging.info('non-unique count %d group count %d' % (non_unique_count, len(non_uniques_list)))
+    logging.info('non-unique %d groups %d' % (non_unique_count, len(non_uniques_list)))
     
     for non_uniques in non_uniques_list:
         print('"' + '" "'.join(non_uniques) + '"')
