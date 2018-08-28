@@ -10,7 +10,8 @@ import argparse
 CHUNK_SIZE = 4096
 
 def size(path):
-    return os.path.getsize(path)
+    statinfo = os.stat(path)
+    return statinfo.st_size
 
 def md5(path):
     hash_md5 = hashlib.md5()
@@ -20,11 +21,17 @@ def md5(path):
     return hash_md5.hexdigest()
 
 def bytecmp(path1, path2):
+    stat1 = os.stat(path1)
+    stat2 = os.stat(path2)
+    if stat1.st_size != stat1.st_size:
+        return False
+    if (stat1.st_dev, stat1.st_ino) == (stat2.st_dev, stat2.st_ino):
+        return True
     return filecmp.cmp(path1, path2, shallow=False)
 
 def preselector(items, reducer):
     items_by_key = {}
-    non_uniques = []
+    non_uniques_list = []
     items_count = 0
     non_unique_count = 0
     for item in items:
@@ -36,15 +43,15 @@ def preselector(items, reducer):
         else:
             same_key_list = items_by_key[key]
             if len(same_key_list) == 1:
-                non_uniques.append(same_key_list)
+                non_uniques_list.append(same_key_list)
                 non_unique_count += 1
             non_unique_count += 1
         same_key_list.append(item)
-    return items_count, non_unique_count, non_uniques
+    return items_count, non_unique_count, non_uniques_list
 
 def selector(items, comperator):
     buckets = []
-    non_uniques = []
+    non_uniques_list = []
     items_count = 0
     non_unique_count = 0
     for item in items:
@@ -54,7 +61,7 @@ def selector(items, comperator):
             if not comperator(item, bucket[0]):
                 continue
             if len(bucket) == 1:
-                non_uniques.append(bucket)
+                non_uniques_list.append(bucket)
                 non_unique_count += 1
             non_unique_count += 1
             bucket.append(item)
@@ -62,7 +69,7 @@ def selector(items, comperator):
             break
         if not match:
             buckets.append([item])
-    return items_count, non_unique_count, non_uniques
+    return items_count, non_unique_count, non_uniques_list
 
 def main():
     logging.basicConfig(format='%(asctime)s %(message)s', level=logging.INFO)
@@ -94,7 +101,7 @@ def main():
     
     non_uniques_list = [all_paths]
     for reducer in reducers:
-        logging.info('used reducer %s' % str(reducer))
+        logging.info('use reducer %s' % str(reducer))
         next_non_uniques_list = []
         non_unique_count = 0
         for non_uniques in non_uniques_list:
@@ -104,7 +111,7 @@ def main():
         non_uniques_list = next_non_uniques_list
         logging.info('non-unique count %d group count %d' % (non_unique_count, len(non_uniques_list)))
     
-    logging.info('used comperator %s' % str(comperator))
+    logging.info('use comperator %s' % str(comperator))
     next_non_uniques_list = []
     non_unique_count = 0
     for non_uniques in non_uniques_list:
