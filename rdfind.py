@@ -78,6 +78,7 @@ def main():
     parser.add_argument('paths', metavar='path', nargs='+', help='path to look for files in')
     parser.add_argument('--dry-run', action='store_true', help='do not modify anything')
     parser.add_argument('--normalize', action='store_true', help='normalize paths')
+    parser.add_argument('--min-size', type=int, default=4096, help='minimal file size')
     args = parser.parse_args()
     
     # TODO: we could use md5 for small files and something like 4-byte in the middle for large files
@@ -94,6 +95,8 @@ def main():
                 file_path = os.path.join(path, name)
                 if args.normalize:
                     file_path = os.path.realpath(file_path)
+                if size(file_path) < args.min_size:
+                    continue
                 all_paths.add(file_path)
     all_paths = list(all_paths)
     
