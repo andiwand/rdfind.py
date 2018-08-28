@@ -94,7 +94,7 @@ def main():
     
     non_uniques_list = [all_paths]
     for reducer in reducers:
-        logging.info('used reducer: %s' % str(reducer))
+        logging.info('used reducer %s' % str(reducer))
         next_non_uniques_list = []
         non_unique_count = 0
         for non_uniques in non_uniques_list:
@@ -102,9 +102,9 @@ def main():
             non_unique_count += s[1]
             next_non_uniques_list.extend(s[-1])
         non_uniques_list = next_non_uniques_list
-        logging.info('non-unique count %d group count %d' % (non_unique_count, len(non_uniques_list))
+        logging.info('non-unique count %d group count %d' % (non_unique_count, len(non_uniques_list)))
     
-    logging.info('used comperator: %s' % str(comperator))
+    logging.info('used comperator %s' % str(comperator))
     next_non_uniques_list = []
     non_unique_count = 0
     for non_uniques in non_uniques_list:
@@ -112,7 +112,7 @@ def main():
         non_unique_count += s[1]
         next_non_uniques_list.extend(s[-1])
     non_uniques_list = next_non_uniques_list
-    logging.info('non-unique count: %d group count %d' % (non_unique_count, len(non_uniques_list))
+    logging.info('non-unique count %d group count %d' % (non_unique_count, len(non_uniques_list)))
     
     for non_uniques in non_uniques_list:
         print('"' + '" "'.join(non_uniques) + '"')
