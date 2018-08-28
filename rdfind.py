@@ -1,0 +1,128 @@
+#!/usr/bin/env python3
+
+import os
+import sys
+import hashlib
+import filecmp
+import logging
+import argparse
+
+CHUNK_SIZE = 4096
+
+def size(path):
+    return os.path.getsize(path)
+
+def md5(path):
+    hash_md5 = hashlib.md5()
+    with open(path, 'rb') as f:
+        for chunk in iter(lambda: f.read(CHUNK_SIZE), b''):
+            hash_md5.update(chunk)
+    return hash_md5.hexdigest()
+
+def bytecmp(path1, path2):
+    return filecmp.cmp(path1, path2, shallow=False)
+
+def preselector(items, reducer):
+    items_by_key = {}
+    non_uniques = []
+    items_count = 0
+    non_unique_count = 0
+    for item in items:
+        items_count += 1
+        key = reducer(item)
+        same_key_list = None
+        if key not in items_by_key:
+            same_key_list = items_by_key[key] = []
+        else:
+            same_key_list = items_by_key[key]
+            if len(same_key_list) == 1:
+                non_uniques.append(same_key_list)
+                non_unique_count += 1
+            non_unique_count += 1
+        same_key_list.append(item)
+    return items_count, non_unique_count, non_uniques
+
+def selector(items, comperator):
+    buckets = []
+    non_uniques = []
+    items_count = 0
+    non_unique_count = 0
+    for item in items:
+        items_count += 1
+        match = False
+        for bucket in buckets:
+            if not comperator(item, bucket[0]):
+                continue
+            if len(bucket) == 1:
+                non_uniques.append(bucket)
+                non_unique_count += 1
+            non_unique_count += 1
+            bucket.append(item)
+            match = True
+            break
+        if not match:
+            buckets.append([item])
+    return items_count, non_unique_count, non_uniques
+
+def main():
+    logging.basicConfig(format='%(asctime)s %(message)s', level=logging.INFO)
+    
+    parser = argparse.ArgumentParser(description='finds efficiently redundant files in different directories and replaces them with hard links')
+    parser.add_argument('paths', metavar='path', nargs='+', help='path to look for files in')
+    parser.add_argument('--dry-run', action='store_true', help='do not modify anything')
+    args = parser.parse_args()
+    
+    # TODO: we could use md5 for small files and something like 4-byte in the middle for large files
+    reducers = [size]
+    comperator = bytecmp
+    
+    all_files = []
+    for p in args.paths:
+        for path, subdirs, files in os.walk(p):
+            for name in files:
+                all_files.append(os.path.join(path, name))
+    
+    logging.info('non-unique count: %d' % len(all_files))
+    
+    non_uniques_list = [all_files]
+    for reducer in reducers:
+        logging.info('used reducer: %s' % str(reducer))
+        next_non_uniques_list = []
+        non_unique_count = 0
+        for non_uniques in non_uniques_list:
+            s = preselector(non_uniques, reducer)
+            non_unique_count += s[1]
+            next_non_uniques_list.extend(s[-1])
+        non_uniques_list = next_non_uniques_list
+        logging.info('non-unique count: %d' % non_unique_count)
+    
+    logging.info('used comperator: %s' % str(comperator))
+    next_non_uniques_list = []
+    non_unique_count = 0
+    for non_uniques in non_uniques_list:
+        s = selector(non_uniques, comperator)
+        non_unique_count += s[1]
+        next_non_uniques_list.extend(s[-1])
+    non_uniques_list = next_non_uniques_list
+    logging.info('non-unique count: %d' % non_unique_count)
+    
+    for non_uniques in non_uniques_list:
+        print('"' + '" "'.join(non_uniques) + '"')
+    
+    if args.dry_run:
+        logging.info('done (dry run)')
+        return
+    
+    logging.info('creating hardlinks...')
+    
+    for non_uniques in non_uniques_list:
+        for path in non_uniques[1:]:
+            os.remove(path)
+            os.link(non_uniques[0], path)
+    
+    logging.info('done')
+
+if __name__ == '__main__':
+    code = main()
+    sys.exit(code)
+
