@@ -79,6 +79,7 @@ def main():
     parser.add_argument('--dry-run', action='store_true', help='do not modify anything')
     parser.add_argument('--normalize', action='store_true', help='normalize paths')
     parser.add_argument('--min-size', type=int, default=4096, help='minimal file size')
+    parser.add_argument('--max-size', type=int, default=9223372036854775807, help='minimal file size')
     args = parser.parse_args()
     
     # TODO: we could use md5 for small files and something like 4-byte in the middle for large files
@@ -88,21 +89,23 @@ def main():
     logging.info('looking for files in %s' % ('"' + '" "'.join(args.paths) + '"'))
     
     # TODO: option to ignore links while searching
-    all_paths = set([])
+    paths = {}
+    path_list = []
     for p in args.paths:
         for path, subdirs, files in os.walk(p):
             for name in files:
                 file_path = os.path.join(path, name)
                 if args.normalize:
                     file_path = os.path.realpath(file_path)
-                if size(file_path) < args.min_size:
-                    continue
-                all_paths.add(file_path)
-    all_paths = list(all_paths)
+                info = {}
+                info['stat'] = os.stat(file_path)
+                if args.min_size < info['stat'].st_size < args.max_size:
+                    paths[file_path] = info
+                    path_list.append(file_path)
     
-    logging.info('non-unique %d' % len(all_paths))
+    logging.info('non-unique %d' % len(path_list))
     
-    non_uniques_list = [all_paths]
+    non_uniques_list = [path_list]
     for reducer in reducers:
         logging.info('use reducer %s' % str(reducer))
         next_non_uniques_list = []
