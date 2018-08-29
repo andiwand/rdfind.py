@@ -2,13 +2,16 @@
 
 import os
 import sys
+import struct
 import hashlib
 import filecmp
 import logging
 import argparse
 
 CHUNK_SIZE = 4096
+SMART_LIMIT = 2**10
 
+# TODO: these function should have access to the info
 def size(path):
     statinfo = os.stat(path)
     return statinfo.st_size
@@ -19,6 +22,11 @@ def md5(path):
         for chunk in iter(lambda: f.read(CHUNK_SIZE), b''):
             hash_md5.update(chunk)
     return hash_md5.hexdigest()
+
+def fasthash(path):
+    with open(path, 'rb') as f:
+        f.seek(size(path) // 2)
+        return f.read(4)
 
 def bytecmp(path1, path2):
     stat1 = os.stat(path1)
@@ -74,6 +82,7 @@ def selector(items, comperator):
 def main():
     logging.basicConfig(format='%(asctime)s %(message)s', level=logging.INFO)
     
+    # TODO: we could add an heuristic mode and probability limit
     parser = argparse.ArgumentParser(description='finds efficiently redundant files in different directories and replaces them with hard links')
     parser.add_argument('paths', metavar='path', nargs='+', help='path to look for files in')
     parser.add_argument('--dry-run', action='store_true', help='do not modify anything')
@@ -88,7 +97,6 @@ def main():
     
     logging.info('looking for files in %s' % ('"' + '" "'.join(args.paths) + '"'))
     
-    # TODO: option to ignore links while searching
     paths = {}
     path_list = []
     for p in args.paths:
