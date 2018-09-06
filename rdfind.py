@@ -96,6 +96,8 @@ def selector(items, comperator, min_size=1):
 def main():
     logging.basicConfig(format='%(asctime)s %(message)s', level=logging.INFO)
     
+    # TODO: add verbose mode
+    # TODO: add progress
     # TODO: we could add an heuristic mode and probability limit
     parser = argparse.ArgumentParser(description='finds efficiently redundant files in different directories and replaces them with hard links')
     parser.add_argument('paths', metavar='path', nargs='+', help='path to look for files in')
