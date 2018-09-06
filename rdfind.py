@@ -125,7 +125,7 @@ def main():
                 if args.min_size < info['stat'].st_size < args.max_size:
                     items.append(info)
     
-    logging.info('non-unique %d' % len(items))
+    logging.info('%d items' % len(items))
     
     groups_list = [items]
     for reducer in reducers:
@@ -137,7 +137,7 @@ def main():
             grouped_count += s[1]
             next_groups_list.extend(s[-1])
         groups_list = next_groups_list
-        logging.info('non-unique %d groups %d' % (grouped_count, len(groups_list)))
+        logging.info('%d itmes %d groups' % (grouped_count, len(groups_list)))
     
     logging.info('use comperator %s' % str(comperator))
     next_groups_list = []
@@ -147,7 +147,7 @@ def main():
         grouped_count += s[1]
         next_groups_list.extend(s[-1])
     groups_list = next_groups_list
-    logging.info('non-unique %d groups %d' % (grouped_count, len(groups_list)))
+    logging.info('%d itmes %d groups' % (grouped_count, len(groups_list)))
     
     for g in groups_list:
         print('"' + '" "'.join(paths(g)) + '"')
