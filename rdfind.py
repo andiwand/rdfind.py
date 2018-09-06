@@ -11,37 +11,49 @@ import argparse
 CHUNK_SIZE = 4096
 SMART_LIMIT = 2**10
 
-# TODO: these function should have access to the info
-def size(path):
-    statinfo = os.stat(path)
-    return statinfo.st_size
+def get_info(path):
+    return { 'path': path, 'stat': os.stat(path) }
 
-def md5(path):
+def paths(infos):
+    return (info['path'] for info in infos)
+
+def fileid(info):
+    return info['stat'].st_dev, info['stat'].st_ino
+
+def size(info):
+    return info['stat'].st_size
+
+def md5(info):
     hash_md5 = hashlib.md5()
-    with open(path, 'rb') as f:
+    with open(info['path'], 'rb') as f:
         for chunk in iter(lambda: f.read(CHUNK_SIZE), b''):
             hash_md5.update(chunk)
     return hash_md5.hexdigest()
 
-def fasthash(path):
-    with open(path, 'rb') as f:
-        f.seek(size(path) // 2)
+def fasthash(info):
+    # TODO: hash one chunk in the middle?
+    # TODO: files smaller than 4 bytes?
+    with open(info['path'], 'rb') as f:
+        f.seek(size(info) // 2)
         return f.read(4)
 
-def bytecmp(path1, path2):
-    stat1 = os.stat(path1)
-    stat2 = os.stat(path2)
-    if stat1.st_size != stat1.st_size:
-        return False
-    if (stat1.st_dev, stat1.st_ino) == (stat2.st_dev, stat2.st_ino):
-        return True
-    return filecmp.cmp(path1, path2, shallow=False)
+def smarthash(info):
+    if info['stat'].st_size < SMART_LIMIT:
+        return md5(info)
+    return fasthash(info)
 
-def preselector(items, reducer):
+def bytecmp(info1, info2):
+    if info1['stat'].st_size != info2['stat'].st_size:
+        return False
+    if fileid(info1) == fileid(info2):
+        return True
+    return filecmp.cmp(info1['path'], info2['path'], shallow=False)
+
+def group(items, reducer, min_size=1):
     items_by_key = {}
-    non_uniques_list = []
+    groups_list = []
     items_count = 0
-    non_unique_count = 0
+    grouped_count = 0
     for item in items:
         items_count += 1
         key = reducer(item)
@@ -50,34 +62,36 @@ def preselector(items, reducer):
             same_key_list = items_by_key[key] = []
         else:
             same_key_list = items_by_key[key]
-            if len(same_key_list) == 1:
-                non_uniques_list.append(same_key_list)
-                non_unique_count += 1
-            non_unique_count += 1
+        if len(same_key_list) == min_size:
+            groups_list.append(same_key_list)
+            grouped_count += min_size
+        elif len(same_key_list) >= min_size:
+            grouped_count += 1
         same_key_list.append(item)
-    return items_count, non_unique_count, non_uniques_list
+    return items_count, grouped_count, groups_list
 
-def selector(items, comperator):
+def selector(items, comperator, min_size=1):
     buckets = []
-    non_uniques_list = []
+    groups_list = []
     items_count = 0
-    non_unique_count = 0
+    grouped_count = 0
     for item in items:
         items_count += 1
         match = False
         for bucket in buckets:
             if not comperator(item, bucket[0]):
                 continue
-            if len(bucket) == 1:
-                non_uniques_list.append(bucket)
-                non_unique_count += 1
-            non_unique_count += 1
+            if len(bucket) == min_size:
+                groups_list.append(bucket)
+                grouped_count += min_size
+            elif len(bucket) >= min_size:
+                grouped_count += 1
             bucket.append(item)
             match = True
             break
         if not match:
             buckets.append([item])
-    return items_count, non_unique_count, non_uniques_list
+    return items_count, grouped_count, groups_list
 
 def main():
     logging.basicConfig(format='%(asctime)s %(message)s', level=logging.INFO)
@@ -88,55 +102,51 @@ def main():
     parser.add_argument('--dry-run', action='store_true', help='do not modify anything')
     parser.add_argument('--normalize', action='store_true', help='normalize paths')
     parser.add_argument('--min-size', type=int, default=4096, help='minimal file size')
-    parser.add_argument('--max-size', type=int, default=9223372036854775807, help='minimal file size')
+    parser.add_argument('--max-size', type=int, default=9223372036854775807, help='maximal file size')
     args = parser.parse_args()
     
-    # TODO: we could use md5 for small files and something like 4-byte in the middle for large files
-    reducers = [size]
+    reducers = [size, smarthash]
     comperator = bytecmp
     
     logging.info('looking for files in %s' % ('"' + '" "'.join(args.paths) + '"'))
     
-    paths = {}
-    path_list = []
+    items = []
     for p in args.paths:
         for path, subdirs, files in os.walk(p):
             for name in files:
                 file_path = os.path.join(path, name)
                 if args.normalize:
                     file_path = os.path.realpath(file_path)
-                info = {}
-                info['stat'] = os.stat(file_path)
+                info = get_info(file_path)
                 if args.min_size < info['stat'].st_size < args.max_size:
-                    paths[file_path] = info
-                    path_list.append(file_path)
+                    items.append(info)
     
-    logging.info('non-unique %d' % len(path_list))
+    logging.info('non-unique %d' % len(items))
     
-    non_uniques_list = [path_list]
+    groups_list = [items]
     for reducer in reducers:
         logging.info('use reducer %s' % str(reducer))
-        next_non_uniques_list = []
-        non_unique_count = 0
-        for non_uniques in non_uniques_list:
-            s = preselector(non_uniques, reducer)
-            non_unique_count += s[1]
-            next_non_uniques_list.extend(s[-1])
-        non_uniques_list = next_non_uniques_list
-        logging.info('non-unique %d groups %d' % (non_unique_count, len(non_uniques_list)))
+        next_groups_list = []
+        grouped_count = 0
+        for g in groups_list:
+            s = group(g, reducer)
+            grouped_count += s[1]
+            next_groups_list.extend(s[-1])
+        groups_list = next_groups_list
+        logging.info('non-unique %d groups %d' % (grouped_count, len(groups_list)))
     
     logging.info('use comperator %s' % str(comperator))
-    next_non_uniques_list = []
-    non_unique_count = 0
-    for non_uniques in non_uniques_list:
-        s = selector(non_uniques, comperator)
-        non_unique_count += s[1]
-        next_non_uniques_list.extend(s[-1])
-    non_uniques_list = next_non_uniques_list
-    logging.info('non-unique %d groups %d' % (non_unique_count, len(non_uniques_list)))
+    next_groups_list = []
+    grouped_count = 0
+    for g in groups_list:
+        s = selector(g, comperator)
+        grouped_count += s[1]
+        next_groups_list.extend(s[-1])
+    groups_list = next_groups_list
+    logging.info('non-unique %d groups %d' % (grouped_count, len(groups_list)))
     
-    for non_uniques in non_uniques_list:
-        print('"' + '" "'.join(non_uniques) + '"')
+    for g in groups_list:
+        print('"' + '" "'.join(paths(g)) + '"')
     
     if args.dry_run:
         logging.info('done (dry run)')
@@ -144,10 +154,20 @@ def main():
     
     logging.info('creating hardlinks...')
     
-    for non_uniques in non_uniques_list:
-        for path in non_uniques[1:]:
-            os.remove(path)
-            os.link(non_uniques[0], path)
+    for g in groups_list:
+        grouped_by_fileid = group(g, fileid, min_size=0)
+        print(list(paths(g)))
+        print(grouped_by_fileid[-1])
+        origin_path = max(grouped_by_fileid[-1], key=lambda g: len(g))[0]['path']
+        
+        max_mtime = max((info['stat'].st_mtime for info in g))
+        os.utime(origin_path, times=(max_mtime, max_mtime))
+        
+        for info in g:
+            if info['path'] == origin_path:
+                continue
+            os.remove(info['path'])
+            os.link(origin_path, info['path'])
     
     logging.info('done')
 
