@@ -105,6 +105,8 @@ def main():
     parser.add_argument('--max-size', type=int, default=9223372036854775807, help='maximal file size')
     args = parser.parse_args()
     
+    # TODO: group by fileid
+    
     reducers = [size, smarthash]
     comperator = bytecmp
     
