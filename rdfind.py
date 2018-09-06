@@ -160,8 +160,6 @@ def main():
     
     for g in groups_list:
         grouped_by_fileid = group(g, fileid, min_size=0)
-        print(list(paths(g)))
-        print(grouped_by_fileid[-1])
         origin_path = max(grouped_by_fileid[-1], key=lambda g: len(g))[0]['path']
         
         max_mtime = max((info['stat'].st_mtime for info in g))
