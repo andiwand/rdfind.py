@@ -14,7 +14,7 @@ SMART_LIMIT = 2**10
 def get_info(path):
     return { 'path': path, 'stat': os.stat(path) }
 
-def paths(infos):
+def to_paths(infos):
     return (info['path'] for info in infos)
 
 def fileid(info):
@@ -114,11 +114,12 @@ def main():
     parser.add_argument('--max-size', type=int, default=9223372036854775807, help='maximal file size')
     parser.add_argument('--merge', choices=['max', 'order'], default='max', help='merging strategy')
     parser.add_argument('--mtime', choices=['order', 'newest', 'merge'], default='order', help='mtime merge strategy')
+    parser.add_argument('--smarthash', action='store_true', help='accelerate hashing for small files')
     args = parser.parse_args()
     
     # TODO: group by fileid
     
-    reducers = [size, md5]
+    reducers = [size, smarthash if args.smarthash else md5]
     comperator = bytecmp
     
     paths = [os.path.realpath(p) for p in args.paths]
@@ -160,7 +161,7 @@ def main():
     logging.info('%d itmes %d groups' % (grouped_count, len(groups_list)))
     
     for g in groups_list:
-        print('"' + '" "'.join(paths(g)) + '"')
+        print('"' + '" "'.join(to_paths(g)) + '"')
     
     if args.dry_run:
         logging.info('done (dry run)')
