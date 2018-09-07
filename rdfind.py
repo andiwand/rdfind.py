@@ -105,7 +105,7 @@ def main():
     
     # TODO: add verbose mode
     # TODO: add progress
-    # TODO: we could add an heuristic mode and probability limit
+    # TODO: we could add an heuristic mode and probability limit (https://www.johndcook.com/blog/2017/01/10/probability-of-secure-hash-collisions/)
     parser = argparse.ArgumentParser(description='finds efficiently redundant files in different directories and replaces them with hard links')
     parser.add_argument('paths', metavar='path', nargs='+', help='path to look for files in')
     parser.add_argument('--dry-run', action='store_true', help='do not modify anything')
@@ -178,11 +178,11 @@ def main():
         
         # TODO: use integer; example file wrike/attachments/IEABQIGWIYBZW6DI-LOGSOL_EU-DSGVO_Datenschutzerklaerung.pdf
         mtime_ns = None
-        if args.mtime = 'merge':
+        if args.mtime == 'merge':
             mtime_ns = origin['stat'].st_mtime_ns
-        elif args.mtime = 'order':
+        elif args.mtime == 'order':
             mtime_ns = by_first_parent(groups_list, paths)['stat'].st_mtime_ns
-        elif args.mtime = 'max':
+        elif args.mtime == 'max':
             mtime_ns = max((info['stat'].st_mtime_ns for info in g))
         os.utime(origin['path'], ns=(mtime_ns, mtime_ns))
         
