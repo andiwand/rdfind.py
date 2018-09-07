@@ -93,6 +93,13 @@ def selector(items, comperator, min_size=1):
             buckets.append([item])
     return items_count, grouped_count, groups_list
 
+def by_first_parent(infos, parents):
+    for p in parents:
+        for i in infos:
+            if i['path'].startswith(p):
+                return i
+    return None
+
 def main():
     logging.basicConfig(format='%(asctime)s %(message)s', level=logging.INFO)
     
@@ -105,17 +112,20 @@ def main():
     parser.add_argument('--normalize', action='store_true', help='normalize paths')
     parser.add_argument('--min-size', type=int, default=4096, help='minimal file size')
     parser.add_argument('--max-size', type=int, default=9223372036854775807, help='maximal file size')
+    parser.add_argument('--merge', choices=['max', 'order'], default='max', help='merging strategy')
+    parser.add_argument('--mtime', choices=['order', 'newest', 'merge'], default='order', help='mtime merge strategy')
     args = parser.parse_args()
     
     # TODO: group by fileid
     
-    reducers = [size, smarthash]
+    reducers = [size, md5]
     comperator = bytecmp
     
-    logging.info('looking for files in %s' % ('"' + '" "'.join(args.paths) + '"'))
+    paths = [os.path.realpath(p) for p in args.paths]
+    logging.info('looking for files in %s' % ('"' + '" "'.join(paths) + '"'))
     
     items = []
-    for p in args.paths:
+    for p in paths:
         for path, subdirs, files in os.walk(p):
             for name in files:
                 file_path = os.path.join(path, name)
@@ -159,17 +169,28 @@ def main():
     logging.info('creating hardlinks...')
     
     for g in groups_list:
-        grouped_by_fileid = group(g, fileid, min_size=0)
-        origin_path = max(grouped_by_fileid[-1], key=lambda g: len(g))[0]['path']
+        origin = None
+        if args.merge == 'max':
+            grouped_by_fileid = group(g, fileid, min_size=0)
+            origin = max(grouped_by_fileid[-1], key=lambda g: len(g))[0]
+        elif args.merge == 'order':
+            origin = by_first_parent(groups_list, paths)
         
-        max_mtime = max((info['stat'].st_mtime for info in g))
-        os.utime(origin_path, times=(max_mtime, max_mtime))
+        # TODO: use integer; example file wrike/attachments/IEABQIGWIYBZW6DI-LOGSOL_EU-DSGVO_Datenschutzerklaerung.pdf
+        mtime_ns = None
+        if args.mtime = 'merge':
+            mtime_ns = origin['stat'].st_mtime_ns
+        elif args.mtime = 'order':
+            mtime_ns = by_first_parent(groups_list, paths)['stat'].st_mtime_ns
+        elif args.mtime = 'max':
+            mtime_ns = max((info['stat'].st_mtime_ns for info in g))
+        os.utime(origin['path'], ns=(mtime_ns, mtime_ns))
         
         for info in g:
-            if info['path'] == origin_path:
+            if info['path'] == origin['path']:
                 continue
             os.remove(info['path'])
-            os.link(origin_path, info['path'])
+            os.link(origin['path'], info['path'])
     
     logging.info('done')
 
