@@ -175,14 +175,14 @@ def main():
             grouped_by_fileid = group(g, fileid, min_size=0)
             origin = max(grouped_by_fileid[-1], key=lambda g: len(g))[0]
         elif args.merge == 'order':
-            origin = by_first_parent(groups_list, paths)
+            origin = by_first_parent(g, paths)
         
         # TODO: use integer; example file wrike/attachments/IEABQIGWIYBZW6DI-LOGSOL_EU-DSGVO_Datenschutzerklaerung.pdf
         mtime_ns = None
         if args.mtime == 'merge':
             mtime_ns = origin['stat'].st_mtime_ns
         elif args.mtime == 'order':
-            mtime_ns = by_first_parent(groups_list, paths)['stat'].st_mtime_ns
+            mtime_ns = by_first_parent(g, paths)['stat'].st_mtime_ns
         elif args.mtime == 'max':
             mtime_ns = max((info['stat'].st_mtime_ns for info in g))
         os.utime(origin['path'], ns=(mtime_ns, mtime_ns))
