@@ -177,7 +177,6 @@ def main():
         elif args.merge == 'order':
             origin = by_first_parent(g, paths)
         
-        # TODO: use integer; example file wrike/attachments/IEABQIGWIYBZW6DI-LOGSOL_EU-DSGVO_Datenschutzerklaerung.pdf
         mtime_ns = None
         if args.mtime == 'merge':
             mtime_ns = origin['stat'].st_mtime_ns
