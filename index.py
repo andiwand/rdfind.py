@@ -5,10 +5,10 @@ import sys
 import hashlib
 import logging
 import argparse
-import pandas as pd
+import csv
 
 CHUNK_SIZE = 4096
-STATS = [ 'st_ino', 'st_dev', 'st_nlink', 'st_size', 'st_mtime_ns' ]
+STATS = ['st_ino', 'st_dev', 'st_nlink', 'st_size', 'st_mtime_ns']
 
 def get_info(path):
     result = {}
@@ -34,17 +34,16 @@ def index(paths, normalize=False, min_size=0, max_size=9223372036854775807, hash
                 if normalize:
                     file_path = os.path.realpath(file_path)
                 info = get_info(file_path)
-                if min_size < info['st_size'] < max_size:
-                    if hashfunc is not None:
-                        info['hash'] = hashfunc(file_path)
-                    items.append(info)
-    return pd.DataFrame(items)
+                if not min_size < info['st_size'] < max_size:
+                    continue
+                if hashfunc is not None:
+                    info['hash'] = hashfunc(file_path)
+                items.append(info)
+    return items
 
 def main():
     logging.basicConfig(format='%(asctime)s %(message)s', level=logging.INFO)
     
-    # TODO: add verbose mode
-    # TODO: add progress
     parser = argparse.ArgumentParser(description='create an index of the given directories')
     parser.add_argument('paths', metavar='path', nargs='+', help='path to look for files in')
     parser.add_argument('csv', help='output csv path')
@@ -55,16 +54,24 @@ def main():
     args = parser.parse_args()
     
     paths = [os.path.realpath(p) for p in args.paths]
-    logging.info('looking for files in %s' % ('"' + '" "'.join(paths) + '"'))
+    info_keys = ['path'] + STATS
     hashfunc = None
     if args.hash == 'md5':
+        info_keys += ['hash']
         hashfunc = md5
     
-    df = index(paths, normalize=args.normalize,
-            min_size=args.min_size, max_size=args.max_size, hashfunc=hashfunc)
-    df.to_csv(args.csv, index=False)
+    logging.info('looking for files in %s' % ('"' + '" "'.join(paths) + '"'))
     
-    logging.info('%d items found' % len(df.index))
+    items = index(paths, normalize=args.normalize,
+            min_size=args.min_size, max_size=args.max_size, hashfunc=hashfunc)
+
+    logging.info('%d items found' % len(items))
+
+    with open(args.csv, 'w') as f:
+        writer = csv.DictWriter(f, fieldnames=info_keys)
+        writer.writeheader()
+        for i in items:
+            writer.writerow(i)
     
     logging.info('done')
 
