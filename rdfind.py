@@ -130,7 +130,8 @@ def progress(total, prefix='', suffix='', decimals=1):
 def main():
     logging.basicConfig(format='%(asctime)s %(message)s', level=logging.INFO)
     
-    # TODO: we could add an heuristic mode and probability limit (https://www.johndcook.com/blog/2017/01/10/probability-of-secure-hash-collisions/)
+    # TODO: option to not merge if other inodes would reside
+    # TODO: add an heuristic mode and probability limit (https://www.johndcook.com/blog/2017/01/10/probability-of-secure-hash-collisions/)
     parser = argparse.ArgumentParser(description='finds efficiently redundant files in different directories and replaces them with hard links')
     parser.add_argument('paths', metavar='path', nargs='+', help='path to look for files in')
     parser.add_argument('--dry-run', action='store_true', help='do not modify anything')

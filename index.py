@@ -50,7 +50,7 @@ def main():
     parser.add_argument('--normalize', action='store_true', help='normalize paths')
     parser.add_argument('--min-size', type=int, default=0, help='minimal file size')
     parser.add_argument('--max-size', type=int, default=9223372036854775807, help='maximal file size')
-    parser.add_argument('--hash', choices=['none','md5'], default='none', help='hash function to use')
+    parser.add_argument('--hash', choices=['none', 'md5'], default='none', help='hash function to use')
     args = parser.parse_args()
     
     paths = [os.path.realpath(p) for p in args.paths]
